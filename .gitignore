@@ -1,0 +1,12 @@
+.DS_Store
+**/*.swp
+API
+*.json
+bin/*
+src/*
+pkg/*
+!bin/.gitkeep
+!src/.gitkeep
+!pkg/.gitkeep
+!src/API/
+env.sh
