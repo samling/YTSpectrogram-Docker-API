@@ -5,8 +5,10 @@ API
 bin/*
 src/*
 pkg/*
+certs/*
 !bin/.gitkeep
 !src/.gitkeep
 !pkg/.gitkeep
+!certs/.gitkeep
 !src/API/
 env.sh

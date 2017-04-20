@@ -22,11 +22,24 @@ type Data struct {
 
 func main() {
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/api/Samples/{Id}/VerifyAndSpawn", VerifyAndSpawn)
-	log.Fatal(http.ListenAndServe(":8080", router))
+	go http.ListenAndServe(":80", http.HandlerFunc(redirect))
+	router.HandleFunc("/api/Samples/{Id}/VerifyAndCreate", VerifyAndCreate)
+	log.Fatal(http.ListenAndServeTLS(":443", "./certs/cert.pem", "./certs/privkey.pem", router))
 }
 
-func VerifyAndSpawn(w http.ResponseWriter, r *http.Request) {
+func redirect(w http.ResponseWriter, req *http.Request) {
+    // remove/add not default ports from req.Host
+    target := "https://" + req.Host + req.URL.Path 
+    if len(req.URL.RawQuery) > 0 {
+        target += "?" + req.URL.RawQuery
+    }
+    log.Printf("redirect to: %s", target)
+    http.Redirect(w, req, target,
+            // see @andreiavrammsd comment: often 307 > 301
+            http.StatusTemporaryRedirect)
+}
+
+func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	// TODO: Sanitize the crap out of this (either here and/or in the extension itself):
 	id := vars["Id"]
@@ -39,7 +52,7 @@ func VerifyAndSpawn(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Value does not exist\n")
 	}
 
-	err := SpawnContainer(id)
+	err := CreateContainer(id)
 
 	if err != nil {
 		fmt.Fprintf(w, "Container did not spawn\n", err)
@@ -71,7 +84,7 @@ func Exists(id string) bool {
 	return data.Exists
 }
 
-func SpawnContainer(Id string) error {
+func CreateContainer(Id string) error {
 	ctx := context.Background()
 	cli, err := client.NewEnvClient()
 	if err != nil {
