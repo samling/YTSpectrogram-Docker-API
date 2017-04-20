@@ -22,6 +22,11 @@ type Data struct {
 	Exists bool
 }
 
+type Samples struct {
+	Id string
+	SampleData []byte
+}
+
 func main() {
 	router := mux.NewRouter().StrictSlash(true)
 
@@ -57,6 +62,8 @@ func redirect(w http.ResponseWriter, req *http.Request) {
 }
 
 func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	vars := mux.Vars(r)
 	// TODO: Sanitize the crap out of this (either here and/or in the extension itself):
 	id := vars["Id"]
@@ -64,7 +71,12 @@ func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 	exists := Exists(id)
 
 	if exists == true {
-		fmt.Fprintf(w, "Value exists\n")
+		data, err := GetSampleData(id)
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			fmt.Fprintf(w, string(data))
+		}
 	} else {
 		err := CreateContainer(id)
 		if err != nil {
@@ -95,10 +107,10 @@ func Exists(id string) bool {
 	return data.Exists
 }
 
-func GetSampleData(id string) bool {
+func GetSampleData(id string) ([]byte, error) {
 	// Check if the entry exists already
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", "http://localhost:3000/api/Samples/"+id+"/exists", nil)
+	req, _ := http.NewRequest("GET", "http://localhost:3000/api/Samples/"+id, nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal("Error when sending request ", err)
@@ -109,12 +121,12 @@ func GetSampleData(id string) bool {
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	// Create a new Data struct to read into
-	var data Data
+	var samples Samples
 
 	// Unmarshal our JSON byte array into a struct
-	err = json.Unmarshal(body, &data)
+	err = json.Unmarshal(body, &samples)
 
-	return data.Exists
+	return samples.SampleData, err
 }
 
 func CreateContainer(Id string) error {
