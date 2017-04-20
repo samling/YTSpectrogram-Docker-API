@@ -23,6 +23,8 @@ type Data struct {
 }
 
 func main() {
+	router := mux.NewRouter().StrictSlash(true)
+
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist("sboynton.com"), //your domain here
@@ -30,17 +32,16 @@ func main() {
 	}
 
 	server := &http.Server{
-		Handler: r,
+		Handler: router,
 		Addr:    ":443",
 		TLSConfig: &tls.Config{
 			GetCertificate: certManager.GetCertificate,
 		},
 	}
 
-	router := mux.NewRouter().StrictSlash(true)
 	go http.ListenAndServe(":80", http.HandlerFunc(redirect))
 	router.HandleFunc("/api/Samples/{Id}/VerifyAndCreate", VerifyAndCreate)
-	log.Fatal(http.ListenAndServeTLS("", ""))
+	log.Fatal(server.ListenAndServeTLS("", ""))
 }
 
 func redirect(w http.ResponseWriter, req *http.Request) {
