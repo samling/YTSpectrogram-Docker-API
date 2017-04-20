@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/gorilla/mux"
+	"golang.org/x/crypto/acme/autocert"
 	_ "golang.org/x/net/context"
 	"io"
 	"io/ioutil"
@@ -21,22 +23,36 @@ type Data struct {
 }
 
 func main() {
+	certManager := autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist("sboynton.com"), //your domain here
+		Cache:      autocert.DirCache("./certs"),           //folder for storing certificates
+	}
+
+	server := &http.Server{
+		Handler: r,
+		Addr:    ":443",
+		TLSConfig: &tls.Config{
+			GetCertificate: certManager.GetCertificate,
+		},
+	}
+
 	router := mux.NewRouter().StrictSlash(true)
 	go http.ListenAndServe(":80", http.HandlerFunc(redirect))
 	router.HandleFunc("/api/Samples/{Id}/VerifyAndCreate", VerifyAndCreate)
-	log.Fatal(http.ListenAndServeTLS(":443", "./certs/cert.pem", "./certs/privkey.pem", router))
+	log.Fatal(http.ListenAndServeTLS("", ""))
 }
 
 func redirect(w http.ResponseWriter, req *http.Request) {
-    // remove/add not default ports from req.Host
-    target := "https://" + req.Host + req.URL.Path 
-    if len(req.URL.RawQuery) > 0 {
-        target += "?" + req.URL.RawQuery
-    }
-    log.Printf("redirect to: %s", target)
-    http.Redirect(w, req, target,
-            // see @andreiavrammsd comment: often 307 > 301
-            http.StatusTemporaryRedirect)
+	// remove/add not default ports from req.Host
+	target := "https://" + req.Host + req.URL.Path
+	if len(req.URL.RawQuery) > 0 {
+		target += "?" + req.URL.RawQuery
+	}
+	log.Printf("redirect to: %s", target)
+	http.Redirect(w, req, target,
+		// see @andreiavrammsd comment: often 307 > 301
+		http.StatusTemporaryRedirect)
 }
 
 func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
