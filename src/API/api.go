@@ -66,23 +66,39 @@ func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 	if exists == true {
 		fmt.Fprintf(w, "Value exists\n")
 	} else {
-		fmt.Fprintf(w, "Value does not exist\n")
+		err := CreateContainer(id)
+		if err != nil {
+			fmt.Fprintf(w, "Value does not exist\n Creating new container")
+		}
 	}
-
-	err := CreateContainer(id)
-
-	if err != nil {
-		fmt.Fprintf(w, "Container did not spawn\n", err)
-	} else {
-		fmt.Fprintf(w, "Container spawned\n")
-	}
-
 }
 
 func Exists(id string) bool {
 	// Check if the entry exists already
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", "http://sboynton.com:3000/api/Samples/"+id+"/exists", nil)
+	req, _ := http.NewRequest("GET", "http://localhost:3000/api/Samples/"+id+"/exists", nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal("Error when sending request ", err)
+	}
+	defer resp.Body.Close()
+
+	// Read the response body into a byte array
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	// Create a new Data struct to read into
+	var data Data
+
+	// Unmarshal our JSON byte array into a struct
+	err = json.Unmarshal(body, &data)
+
+	return data.Exists
+}
+
+func GetSampleData(id string) bool {
+	// Check if the entry exists already
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", "http://localhost:3000/api/Samples/"+id+"/exists", nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal("Error when sending request ", err)
