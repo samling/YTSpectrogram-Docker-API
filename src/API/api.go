@@ -45,7 +45,7 @@ func main() {
 	}
 
 	go http.ListenAndServe(":80", http.HandlerFunc(redirect))
-	router.HandleFunc("/api/Samples/{Id}/VerifyAndCreate", VerifyAndCreate)
+	router.HandleFunc("/api/Samples/{Id}", VerifyAndCreate)
 	log.Fatal(server.ListenAndServeTLS("", ""))
 }
 
@@ -73,6 +73,7 @@ func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 	if exists == true {
 		data, err := GetSampleData(id)
 		if err != nil {
+			fmt.Fprintf(w, "Could not parse sample data")
 			log.Fatal(err)
 		} else {
 			fmt.Fprintf(w, string(data))
@@ -88,7 +89,7 @@ func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 func Exists(id string) bool {
 	// Check if the entry exists already
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", "http://localhost:3000/api/Samples/"+id+"/exists", nil)
+	req, _ := http.NewRequest("GET", "http://localhost:3001/api/Samples/"+id+"/exists", nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal("Error when sending request ", err)
@@ -110,7 +111,7 @@ func Exists(id string) bool {
 func GetSampleData(id string) ([]byte, error) {
 	// Check if the entry exists already
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", "http://localhost:3000/api/Samples/"+id, nil)
+	req, _ := http.NewRequest("GET", "http://localhost:3001/api/Samples/"+id, nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal("Error when sending request ", err)
