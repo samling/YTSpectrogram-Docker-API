@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -30,7 +31,7 @@ func main() {
 	}
 
 	server := &http.Server{
-		Handler: r,
+		Handler: router,
 		Addr:    ":443",
 		TLSConfig: &tls.Config{
 			GetCertificate: certManager.GetCertificate,
@@ -38,12 +39,12 @@ func main() {
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
-	go http.ListenAndServe(":80", http.HandlerFunc(redirect))
+	go http.ListenAndServe(":80", http.HandlerFunc(Redirect))
 	router.HandleFunc("/api/Samples/{Id}/VerifyAndCreate", VerifyAndCreate)
 	log.Fatal(http.ListenAndServeTLS("", ""))
 }
 
-func redirect(w http.ResponseWriter, req *http.Request) {
+func Redirect(w http.ResponseWriter, req *http.Request) {
 	// remove/add not default ports from req.Host
 	target := "https://" + req.Host + req.URL.Path
 	if len(req.URL.RawQuery) > 0 {
@@ -53,6 +54,25 @@ func redirect(w http.ResponseWriter, req *http.Request) {
 	http.Redirect(w, req, target,
 		// see @andreiavrammsd comment: often 307 > 301
 		http.StatusTemporaryRedirect)
+}
+
+func ReadLines(filePath string) []string {
+	f, err := os.Open(filePath)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	return lines
 }
 
 func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
@@ -107,8 +127,14 @@ func CreateContainer(Id string) error {
 		return err
 	}
 
+	config := ReadLines("./config")
+
 	env := make([]string, 1)
 	env[0] = "YTID=" + Id
+	env[1] = config[0]
+	env[2] = config[1]
+	env[3] = config[2]
+	env[4] = config[3]
 
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: "yts",
