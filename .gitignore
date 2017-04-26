@@ -2,6 +2,8 @@
 **/*.swp
 API
 *.json
+config.cfg
+!config.cfg.template
 bin/*
 src/*
 pkg/*

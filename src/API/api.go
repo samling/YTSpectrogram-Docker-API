@@ -23,7 +23,14 @@ type Data struct {
 	Exists bool
 }
 
+type Samples struct {
+	Id         string
+	SampleData []byte
+}
+
 func main() {
+	router := mux.NewRouter().StrictSlash(true)
+
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist("sboynton.com"), //your domain here
@@ -38,10 +45,9 @@ func main() {
 		},
 	}
 
-	router := mux.NewRouter().StrictSlash(true)
 	go http.ListenAndServe(":80", http.HandlerFunc(Redirect))
-	router.HandleFunc("/api/Samples/{Id}/VerifyAndCreate", VerifyAndCreate)
-	log.Fatal(http.ListenAndServeTLS("", ""))
+	router.HandleFunc("/api/Samples/{Id}", VerifyAndCreate)
+	log.Fatal(server.ListenAndServeTLS("", ""))
 }
 
 func Redirect(w http.ResponseWriter, req *http.Request) {
@@ -76,6 +82,8 @@ func ReadLines(filePath string) []string {
 }
 
 func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	vars := mux.Vars(r)
 	// TODO: Sanitize the crap out of this (either here and/or in the extension itself):
 	id := vars["Id"]
@@ -83,25 +91,25 @@ func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 	exists := Exists(id)
 
 	if exists == true {
-		fmt.Fprintf(w, "Value exists\n")
+		data, err := GetSampleData(id)
+		if err != nil {
+			fmt.Fprintf(w, "Could not parse sample data")
+			log.Fatal(err)
+		} else {
+			fmt.Fprintf(w, string(data))
+		}
 	} else {
-		fmt.Fprintf(w, "Value does not exist\n")
+		err := CreateContainer(id)
+		if err != nil {
+			fmt.Fprintf(w, "Value does not exist\n Creating new container")
+		}
 	}
-
-	err := CreateContainer(id)
-
-	if err != nil {
-		fmt.Fprintf(w, "Container did not spawn\n", err)
-	} else {
-		fmt.Fprintf(w, "Container spawned\n")
-	}
-
 }
 
 func Exists(id string) bool {
 	// Check if the entry exists already
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", "http://sboynton.com:3000/api/Samples/"+id+"/exists", nil)
+	req, _ := http.NewRequest("GET", "http://localhost:3001/api/Samples/"+id+"/exists", nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal("Error when sending request ", err)
@@ -118,6 +126,28 @@ func Exists(id string) bool {
 	err = json.Unmarshal(body, &data)
 
 	return data.Exists
+}
+
+func GetSampleData(id string) ([]byte, error) {
+	// Check if the entry exists already
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", "http://localhost:3001/api/Samples/"+id, nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal("Error when sending request ", err)
+	}
+	defer resp.Body.Close()
+
+	// Read the response body into a byte array
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	// Create a new Data struct to read into
+	var samples Samples
+
+	// Unmarshal our JSON byte array into a struct
+	err = json.Unmarshal(body, &samples)
+
+	return samples.SampleData, err
 }
 
 func CreateContainer(Id string) error {
