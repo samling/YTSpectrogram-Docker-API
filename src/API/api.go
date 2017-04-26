@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/go-connections/nat"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/gorilla/mux"
@@ -25,7 +26,7 @@ type Data struct {
 
 type Samples struct {
 	Id         string
-	SampleData []byte
+	SampleData string
 }
 
 func main() {
@@ -86,7 +87,7 @@ func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	// TODO: Sanitize the crap out of this (either here and/or in the extension itself):
-	id := vars["Id"]
+	id := string(vars["Id"])
 
 	exists := Exists(id)
 
@@ -94,7 +95,7 @@ func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 		data, err := GetSampleData(id)
 		if err != nil {
 			fmt.Fprintf(w, "Could not parse sample data")
-			log.Fatal(err)
+			log.Print(err)
 		} else {
 			fmt.Fprintf(w, string(data))
 		}
@@ -112,7 +113,7 @@ func Exists(id string) bool {
 	req, _ := http.NewRequest("GET", "http://localhost:3001/api/Samples/"+id+"/exists", nil)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Error when sending request ", err)
+		log.Print("Error when sending request ", err)
 	}
 	defer resp.Body.Close()
 
@@ -128,13 +129,13 @@ func Exists(id string) bool {
 	return data.Exists
 }
 
-func GetSampleData(id string) ([]byte, error) {
+func GetSampleData(id string) (string, error) {
 	// Check if the entry exists already
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", "http://localhost:3001/api/Samples/"+id, nil)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Error when sending request ", err)
+		log.Print("Error when sending request ", err)
 	}
 	defer resp.Body.Close()
 
@@ -157,19 +158,26 @@ func CreateContainer(Id string) error {
 		return err
 	}
 
-	config := ReadLines("./config")
+	config := ReadLines("./config.cfg")
 
-	env := make([]string, 1)
+	env := make([]string, 5)
 	env[0] = "YTID=" + Id
 	env[1] = config[0]
 	env[2] = config[1]
 	env[3] = config[2]
 	env[4] = config[3]
 
-	resp, err := cli.ContainerCreate(ctx, &container.Config{
+	portBindings := map[nat.Port][]nat.PortBinding{"8080/tcp": []nat.PortBinding{nat.PortBinding{HostPort: "8080"}}}
+	
+
+	resp, err := cli.ContainerCreate(ctx,
+	&container.Config{
 		Image: "yts",
 		Env:   env,
-	}, nil, nil, "")
+	}, &container.HostConfig{
+		NetworkMode: "host",
+		PortBindings: portBindings,
+	}, nil, "")
 	if err != nil {
 		return err
 	}
