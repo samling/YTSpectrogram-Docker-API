@@ -145,7 +145,7 @@ func CreateContainer(Id string) error {
 	env[3] = "DB_PASS=" + config[2]
 	env[4] = "DB_NAME=" + config[3]
 
-	//portBindings := map[nat.Port][]nat.PortBinding{"8080/tcp": []nat.PortBinding{nat.PortBinding{HostPort: "8080"}}}
+	//portBindings := map[nat.Port][]nat.PortBinding{"3306/tcp": []nat.PortBinding{nat.PortBinding{HostPort: "3306"}}}
 
 	resp, err := cli.ContainerCreate(ctx,
 		&container.Config{
