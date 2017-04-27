@@ -18,6 +18,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type Data struct {
@@ -45,7 +46,7 @@ func Redirect(w http.ResponseWriter, req *http.Request) {
 		http.StatusTemporaryRedirect)
 }
 
-func ReadLines(filePath string) []string {
+func ReadConfig(filePath string) []string {
 	f, err := os.Open(filePath)
 	if err != nil {
 		panic(err)
@@ -53,20 +54,35 @@ func ReadLines(filePath string) []string {
 	defer f.Close()
 
 	var lines []string
+	var linesSplit []string
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
+
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 
-	return lines
+	for _, line := range lines {
+		l := strings.Split(line, "=")
+		linesSplit = append(linesSplit, l[1])
+	}
+
+	return linesSplit
 }
 
 func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
+	// Get values from our config file
+	config := ReadConfig("./config.cfg")
+	host := config[0]
+	user := config[1]
+	pass := config[2]
+	name := config[3]
+
 	// Connect to our database
-	connString := GetConnectionString(os.Getenv("DB_HOST"), os.Getenv("DB_USER"), os.Getenv("DB_PASS"), os.Getenv("DB_NAME"))
+	connString := GetConnectionString(host, user, pass, name)
 	db := sqlx.MustConnect("mysql", connString)
 
 	// Set our response header to allow cross-origin access
@@ -120,14 +136,14 @@ func CreateContainer(Id string) error {
 		return err
 	}
 
-	config := ReadLines("./config.cfg")
+	config := ReadConfig("./config.cfg")
 
 	env := make([]string, 5)
 	env[0] = "YTID=" + Id
-	env[1] = config[0]
-	env[2] = config[1]
-	env[3] = config[2]
-	env[4] = config[3]
+	env[1] = "DB_HOST=" + config[0]
+	env[2] = "DB_USER=" + config[1]
+	env[3] = "DB_PASS=" + config[2]
+	env[4] = "DB_NAME=" + config[3]
 
 	//portBindings := map[nat.Port][]nat.PortBinding{"8080/tcp": []nat.PortBinding{nat.PortBinding{HostPort: "8080"}}}
 
