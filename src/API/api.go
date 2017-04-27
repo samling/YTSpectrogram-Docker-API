@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/client"
 	_ "github.com/docker/go-connections/nat"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/acme/autocert"
 	_ "golang.org/x/net/context"
 	"io"
@@ -49,6 +50,10 @@ func main() {
 	go http.ListenAndServe(":80", http.HandlerFunc(Redirect))
 	router.HandleFunc("/api/Samples/{Id}", VerifyAndCreate)
 	log.Fatal(server.ListenAndServeTLS("", ""))
+}
+
+func GetConnectionString(dbHost string, dbUser string, dbPass string, dbName string) string {
+	return fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", dbUser, dbPass, dbHost, dbName)
 }
 
 func Redirect(w http.ResponseWriter, req *http.Request) {
@@ -119,25 +124,19 @@ func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func Exists(id string) bool {
-	// Check if the entry exists already
-	client := &http.Client{}
-	req, _ := http.NewRequest("GET", "http://localhost:3001/api/Samples/"+id+"/exists", nil)
-	resp, err := client.Do(req)
+	// Connect to our database
+	connString := GetConnectionString(os.Getenv("DB_HOST"), os.Getenv("DB_USER"), os.Getenv("DB_PASS"), os.Getenv("DB_NAME"))
+	db := sqlx.MustConnect("mysql", connString)
+
+	// Write id and sampledata to db, ignore duplicates
+	row := db.QueryRow("SELECT FROM Samples WHERE Id=?", id)
+	var sample string
+	err := row.Scan(&sample)
 	if err != nil {
-		log.Print("Error when sending request ", err)
+		return false
 	}
-	defer resp.Body.Close()
 
-	// Read the response body into a byte array
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	// Create a new Data struct to read into
-	var data Data
-
-	// Unmarshal our JSON byte array into a struct
-	err = json.Unmarshal(body, &data)
-
-	return data.Exists
+	return true
 }
 
 func GetSampleData(id string) (string, error) {
