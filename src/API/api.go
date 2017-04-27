@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"flag"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -182,6 +183,11 @@ func CreateContainer(Id string) error {
 }
 
 func main() {
+	var dir string
+
+	flag.StringVar(&dir, "dir", "../static/", "Static files dir")
+	flag.Parse()
+
 	router := mux.NewRouter().StrictSlash(true)
 
 	certManager := autocert.Manager{
@@ -200,5 +206,6 @@ func main() {
 
 	go http.ListenAndServe(":80", http.HandlerFunc(Redirect))
 	router.HandleFunc("/api/Samples/{Id}", VerifyAndCreate)
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(dir))))
 	log.Fatal(server.ListenAndServeTLS("", ""))
 }
