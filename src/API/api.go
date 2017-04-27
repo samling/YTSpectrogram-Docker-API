@@ -83,7 +83,11 @@ func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 
 	// Connect to our database
 	connString := GetConnectionString(host, user, pass, name)
-	db := sqlx.MustConnect("mysql", connString)
+	db, err := sqlx.Open("mysql", connString)
+	if err != nil {
+		log.Print(err)
+	}
+	defer db.Close()
 
 	// Set our response header to allow cross-origin access
 	w.Header().Set("Access-Control-Allow-Origin", "*")
