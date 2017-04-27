@@ -4,6 +4,8 @@ API
 *.json
 config.cfg
 !config.cfg.template
+pkg/*
+src/*
 bin/*
 certs/*
 !bin/.gitkeep
