@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"fmt"
 	"flag"
+	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -158,6 +158,7 @@ func CreateContainer(Id string) error {
 			Env:   env,
 		}, &container.HostConfig{
 			NetworkMode: "host",
+			AutoRemove:  true,
 			//PortBindings: portBindings,
 		}, nil, "")
 	if err != nil {
