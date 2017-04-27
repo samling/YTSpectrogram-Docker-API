@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
+	_ "github.com/docker/go-connections/nat"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/acme/autocert"
 	_ "golang.org/x/net/context"
@@ -167,15 +167,15 @@ func CreateContainer(Id string) error {
 	env[3] = config[2]
 	env[4] = config[3]
 
-	portBindings := map[nat.Port][]nat.PortBinding{"8080/tcp": []nat.PortBinding{nat.PortBinding{HostPort: "8080"}}}
+	//portBindings := map[nat.Port][]nat.PortBinding{"8080/tcp": []nat.PortBinding{nat.PortBinding{HostPort: "8080"}}}
 
 	resp, err := cli.ContainerCreate(ctx,
 		&container.Config{
 			Image: "yts",
 			Env:   env,
 		}, &container.HostConfig{
-			NetworkMode:  "host",
-			PortBindings: portBindings,
+			NetworkMode: "host",
+			//PortBindings: portBindings,
 		}, nil, "")
 	if err != nil {
 		return err
