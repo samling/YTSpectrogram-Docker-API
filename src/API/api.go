@@ -92,6 +92,7 @@ func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 	exists := Exists(id)
 
 	if exists == true {
+		// If the video in question is already in the DB, just display the JSON data
 		data, err := GetSampleData(id)
 		if err != nil {
 			fmt.Fprintf(w, "Could not parse sample data")
@@ -100,9 +101,19 @@ func VerifyAndCreate(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, string(data))
 		}
 	} else {
+		// If it's not, spawn a new YTS container to download, analyze and store the sample data
 		err := CreateContainer(id)
 		if err != nil {
 			fmt.Fprintf(w, "Value does not exist\n Creating new container")
+		} else {
+			// Then display the data
+			data, err := GetSampleData(id)
+			if err != nil {
+				fmt.Fprintf(w, "Could not parse sample data")
+				log.Print(err)
+			} else {
+				fmt.Fprintf(w, string(data))
+			}
 		}
 	}
 }
